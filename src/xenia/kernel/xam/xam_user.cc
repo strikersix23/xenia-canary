@@ -1007,50 +1007,30 @@ DECLARE_XAM_EXPORT1(XamUserIsUnsafeProgrammingAllowed, kUserProfiles, kStub);
 
 dword_result_t XamUserGetSubscriptionType_entry(
     dword_t user_index, lpdword_t subscription_length_ptr,
-    lpdword_t subscription_payment_ptr,
-    pointer_t<XAM_OVERLAPPED> overlapped_ptr) {
-  auto run = [=](uint32_t& extended_error, uint32_t& length) {
-    extended_error = X_ERROR_SUCCESS;
-    length = 0;
-
-    if (user_index >= XUserMaxUserCount) {
-      extended_error = X_E_INVALIDARG;
-      return X_ERROR_INVALID_PARAMETER;
-    }
-
-    if (!subscription_length_ptr || !subscription_payment_ptr) {
-      extended_error = X_E_INVALIDARG;
-      return X_ERROR_INVALID_PARAMETER;
-    }
-
-    const auto user_profile =
-        kernel_state()->xam_state()->GetUserProfile(user_index);
-
-    if (!user_profile) {
-      extended_error = X_E_NO_SUCH_USER;
-      return X_ERROR_FUNCTION_FAILED;
-    }
-
-    const auto subscription_data =
-        kernel_state()->xam_state()->user_tracker()->GetUserSubscriptionData(
-            user_profile);
-
-    *subscription_length_ptr = subscription_data.first;
-    *subscription_payment_ptr = subscription_data.second;
-
-    return X_ERROR_SUCCESS;
-  };
-
-  if (!overlapped_ptr) {
-    uint32_t extended_error, length;
-    X_RESULT result = run(extended_error, length);
-
-    return result == X_ERROR_SUCCESS ? result : extended_error;
+    lpdword_t subscription_payment_ptr) {
+  if (user_index >= XUserMaxUserCount) {
+    return X_ERROR_INVALID_PARAMETER;
   }
 
-  kernel_state()->CompleteOverlappedDeferredEx(run, overlapped_ptr);
+  if (!subscription_length_ptr || !subscription_payment_ptr) {
+    return X_ERROR_INVALID_PARAMETER;
+  }
 
-  return X_ERROR_IO_PENDING;
+  const auto user_profile =
+      kernel_state()->xam_state()->GetUserProfile(user_index);
+
+  if (!user_profile) {
+    return X_ERROR_FUNCTION_FAILED;
+  }
+
+  const auto [subscription_period, subscription_payment] =
+      kernel_state()->xam_state()->user_tracker()->GetUserSubscriptionData(
+          user_profile);
+
+  *subscription_length_ptr = subscription_period;
+  *subscription_payment_ptr = subscription_payment;
+
+  return X_ERROR_SUCCESS;
 }
 DECLARE_XAM_EXPORT1(XamUserGetSubscriptionType, kUserProfiles, kImplemented);
 
